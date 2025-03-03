@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: awx-backup-job
+  namespace: awx-test
+spec:
+  schedule: "0 5 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: awx-operator-controller-manager
+          containers:
+          - name: kubectl
+            image: bitnami/kubectl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              cat <<EOF | kubectl apply -f -
+              apiVersion: awx.ansible.com/v1beta1
+              kind: AWXBackup
+              metadata:
+                name: awxbackup-$(date +%Y%m%d)
+                namespace: awx-test
+              spec:
+                deployment_name: awx-test
+                backup_pvc: 'awx-test-backup-claim'
+              EOF
+          restartPolicy: OnFailure 
