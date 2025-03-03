@@ -1,0 +1,3 @@
+cd /root/awx_api_scripts
+source venv/bin/activate
+python templates_web.py

@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+
+import sys
+import json
+import requests
+from datetime import datetime
+from operator import itemgetter
+
+# AWX Verbindungsdetails
+AWX_HOST = 'http://awx-test.fritz.box'
+AWX_USERNAME = 'cursor'
+AWX_PASSWORD = 'Test001'
+API_VERSION = 'v2'
+
+def get_all_templates():
+    templates = []
+    
+    # Hole Job Templates
+    job_templates_url = f"{AWX_HOST}/api/{API_VERSION}/job_templates/"
+    workflow_templates_url = f"{AWX_HOST}/api/{API_VERSION}/workflow_job_templates/"
+    
+    try:
+        # Job Templates abrufen
+        response = requests.get(
+            job_templates_url,
+            auth=(AWX_USERNAME, AWX_PASSWORD),
+            verify=False
+        )
+        response.raise_for_status()
+        job_templates = response.json()
+        
+        # Workflow Templates abrufen
+        response = requests.get(
+            workflow_templates_url,
+            auth=(AWX_USERNAME, AWX_PASSWORD),
+            verify=False
+        )
+        response.raise_for_status()
+        workflow_templates = response.json()
+        
+        # Job Templates zur Liste hinzufügen
+        for template in job_templates['results']:
+            templates.append({
+                'id': template['id'],
+                'name': template['name'],
+                'type': 'Job Template',
+                'created': template['created'],
+                'modified': template['modified'],
+                'description': template.get('description', ''),
+                'project': template.get('project', ''),
+                'inventory': template.get('inventory', ''),
+                'playbook': template.get('playbook', '')
+            })
+            
+        # Workflow Templates zur Liste hinzufügen
+        for template in workflow_templates['results']:
+            templates.append({
+                'id': template['id'],
+                'name': template['name'],
+                'type': 'Workflow Template',
+                'created': template['created'],
+                'modified': template['modified'],
+                'description': template.get('description', '')
+            })
+            
+        return templates
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Fehler beim Abrufen der Templates: {str(e)}")
+        if hasattr(e.response, 'text'):
+            print(f"API Response: {e.response.text}")
+        return None
+
+def get_project_name(project_id):
+    if not project_id:
+        return "Kein Projekt"
+        
+    api_url = f"{AWX_HOST}/api/{API_VERSION}/projects/{project_id}/"
+    
+    try:
+        response = requests.get(
+            api_url,
+            auth=(AWX_USERNAME, AWX_PASSWORD),
+            verify=False
+        )
+        response.raise_for_status()
+        project = response.json()
+        return project['name']
+    except:
+        return f"Projekt {project_id}"
+
+def get_inventory_name(inventory_id):
+    if not inventory_id:
+        return "Kein Inventory"
+        
+    api_url = f"{AWX_HOST}/api/{API_VERSION}/inventories/{inventory_id}/"
+    
+    try:
+        response = requests.get(
+            api_url,
+            auth=(AWX_USERNAME, AWX_PASSWORD),
+            verify=False
+        )
+        response.raise_for_status()
+        inventory = response.json()
+        return inventory['name']
+    except:
+        return f"Inventory {inventory_id}"
+
+def format_datetime(dt_string):
+    dt = datetime.fromisoformat(dt_string.replace('Z', '+00:00'))
+    return dt.strftime('%d.%m.%Y %H:%M:%S')
+
+def list_templates():
+    # Hole alle Templates
+    templates = get_all_templates()
+    
+    if not templates:
+        print("Keine Templates gefunden oder Fehler beim Abrufen.")
+        return
+    
+    # Sortiere nach Erstellungsdatum (neueste zuerst)
+    templates.sort(key=itemgetter('created'), reverse=True)
+    
+    # Ausgabe
+    print("\nAlle Templates (sortiert nach Erstellungsdatum, neueste zuerst):")
+    print("=" * 100)
+    
+    for template in templates:
+        print(f"\nName: {template['name']}")
+        print(f"Typ: {template['type']}")
+        print(f"ID: {template['id']}")
+        print(f"Erstellt am: {format_datetime(template['created'])}")
+        print(f"Zuletzt geändert: {format_datetime(template['modified'])}")
+        
+        if template['description']:
+            print(f"Beschreibung: {template['description']}")
+            
+        if template['type'] == 'Job Template':
+            project_name = get_project_name(template['project'])
+            inventory_name = get_inventory_name(template['inventory'])
+            print(f"Projekt: {project_name}")
+            print(f"Inventory: {inventory_name}")
+            print(f"Playbook: {template['playbook']}")
+            
+        print("-" * 100)
+
+if __name__ == '__main__':
+    # Deaktiviere Warnungen für unsichere HTTPS-Requests
+    requests.packages.urllib3.disable_warnings()
+    
+    print("AWX Template Übersicht")
+    print("=====================")
+    list_templates() 
