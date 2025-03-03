@@ -111,3 +111,4 @@ Werkzeug==3.0.1
 - Stellen Sie sicher, dass die Firewall-Regeln korrekt konfiguriert sind
 - Verwenden Sie starke Passwörter für die AWX-Authentifizierung # cursor_awx
 # cursor_awx
+# cursor_awx
